@@ -134,19 +134,12 @@ rails -v
 wsl --shutdown
 ```
 
-## 建立第一個Rails Application
+## 建立一個Blog Application
 
-找個目錄放你的Rails專案，這裡為`projects`：
-
-```bash
-mkdir projects
-cd projects
-```
-
-輸入下面指令建立一個叫做demo的Rails專案：
+在你預先建立好要存放rails的地方，輸入下面指令建立一個叫做`blog`的Rails專案：
 
 ```bash
-rails new demo
+rails new blog
 ```
 
 輸入後可以看到以下訊息新增的檔案
@@ -165,10 +158,10 @@ Bundle complete! 15 Gemfile dependencies, 73 gems now installed.
 Use `bundle info [gemname]` to see where a bundled gem is installed.
 ```
 
-進入剛剛建立的demo資料夾
+進入剛剛建立的blog資料夾
 
 ```bash
-cd demo
+cd blog
 ```
 
 這邊簡單的介紹各個檔案的功用：
@@ -193,7 +186,7 @@ cd demo
 
 ## 啟動伺服器
 
-Rails使用了一套叫做`Bundler`的工具可以幫助我們檢查及安裝這個Rails應用程式所有依存的套件，在demo資料夾下輸入：
+Rails使用了一套叫做`Bundler`的工具可以幫助我們檢查及安裝這個Rails應用程式所有依存的套件，在blog資料夾下輸入：
 
 ```bash
 bundle install
@@ -226,9 +219,72 @@ Puma starting in single mode...
 Use Ctrl-C to stop
 ```
 
-打開瀏覽器前往[http://localhost:3000]，我們可以看到Rails的預設首頁。
+打開瀏覽器前往[http://localhost:3000](http://localhost:3000)，我們可以看到Rails的預設首頁。
+
+## Hello, Rails!
+
+要讓Rails說"你好"，要先建立一個`route`、`controller`、`view`。route會先映射請求到control，control會處理請求所需要的工作，並準備任何view所需要的資料，view會顯示這些資料。
+
+Ruby如何實現這些工作：
+* Routes 是由Ruby DSL (Domain-Specific Language)規則所編寫。
+* Controllers 是 Ruby classes，公共的函式式`actions`。
+* Views 通常為 HTML與Ruby的混合。
+
+首先，我們先加入route，到`config/routes.rb`加入程式碼：
+
+```ruby
+Rails.application.routes.draw do
+  get "/articles", to: "articles#index"
+  # Define your application routes per the DSL in https://guides.rubyonrails.org/routing.html
+end
+```
+
+這段宣告表示route為 `GET /articles`，而 request會映射到`ArticlesController`裡面的`index` action。
+
+這時候我們還沒有`ArticlesController`這個 controller，可以使用 controller產生器來產生檔案(`--skip-routes`因為我們已經先產生了route，所以skip)：
+
+```bash
+bin/rails generate controller Articles index --skip-routes
+```
+
+> rails generate 可以簡寫為 rails g
+
+Rails 會幫你產生數個檔案：
+
+```text
+create  app/controllers/articles_controller.rb
+invoke  erb
+create    app/views/articles
+create    app/views/articles/index.html.erb
+invoke  test_unit
+create    test/controllers/articles_controller_test.rb
+invoke  helper
+create    app/helpers/articles_helper.rb
+invoke    test_unit
+```
+
+產生的controller檔案會在，`app/controllers/articles_controller.rb`
+
+```ruby
+class ArticlesController < ApplicationController
+  def index
+  end
+end
+```
+
+當`index` action是空的時候，Rails會自動顯示與controller action名稱相同的view。Views的位置在`app/views`，你可以找到與之action同名的`app/views/articles/index.html.erb`。
+
+更改裡面的內容為：
+
+```html
+<h1>Hello, Rails!</h1>
+```
+
+再啟動伺服器，到[http://localhost:3000/articles](http://localhost:3000/articles)就可以看到變化了。
 
 ## Source
+
+[Rails Guides](https://guides.rubyonrails.org/getting_started.html)
 
 [Rails 實戰聖經](https://ihower.tw/rails/index.html)
 
