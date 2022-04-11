@@ -1,8 +1,8 @@
 # Ruby on Rails
 
-## 簡介
+## 1 簡介
 
-### Ruby on Rails?
+### 1.1 Ruby on Rails?
 
 **Ruby on Rails**(官方簡稱為Rails，RoR非官方簡稱)是使用Ruby程式語言所開發的Web框架。Rails採用MVC(Model-View-Control)模式、內建支援單元測試與整合測試、支援Ajax和RESTful介面、ORM機制，以及支援各種最新的業界標準如HTML5、JQuery等等功能。
 
@@ -12,7 +12,7 @@ Rails的哲學包括以下指導原則：
 * **慣例勝於設定(Convention Over Configuration)** – Rails會預設各種好的設定跟慣例，而不是要求你設定每一個細節到設定檔中。
 * **REST是網站應用程式的最佳模式** – 使用Resources和標準的HTTP verbs(動詞)來組織你的應用程式是最快的方式(我們會在路徑一章詳細介紹這個強大的設計)。
 
-### Ruby
+### 1.2 Ruby
 
 Ruby是一套開放原始碼、物件導向的動態直譯式(interpreted)程式語言，它有著簡單哲學、高生產力、精巧、自然的語法。創造者是來自日本的松本行弘(又名Matz)，設計的靈感來自於Lisp、Perl和Smalltalk，設計的目的是要讓程式設計師能夠快樂地寫程式。
 
@@ -29,11 +29,11 @@ str = "Ruby Test"
 * 每樣東西都是物件，包括數字
 * 使用Code Block形式的匿名函式(anonymous function)隨處可見
 
-### RubyGems
+### 1.3 RubyGems
 
 RubyGems是Ruby的套件管理系統，讓你輕易安裝及管理Ruby函式庫。你可以在[RubyGems](https://rubygems.org/)上找到所有的Ruby開源套件。另外，讀者如果想找Ruby或Rails有哪些好用的套件，也可以瀏覽看看[The Ruby Toolbox](https://www.ruby-toolbox.com/)，這個站依照套件的熱門程度排序，非常方便。
 
-### 常用指令
+#### 常用指令
 
 ```bash
 gem -v RubyGems的版本
@@ -54,17 +54,17 @@ gem uninstall <gem_name> 反安裝
 gem install <gem_name> -N
 ```
 
-## 安裝 Ruby
+## 2 安裝 Ruby
 
-### 作業系統
+### 2.1 作業系統
 
 Ruby可以運行在Windows、Linux、Mac OS X、BSD和Solaris上。雖然Rails可以在Windows上執行，但是有些套件只支援Unix-like作業系統，以及Ruby程式在Unix-like系統上執行起來也比較快速及穩定。**所以這裡我選擇使用`WSL2運行Ubuntu 20.04LTS`來當作我的開發環境**。
 
-### 資料庫
+### 2.2 資料庫
 
 Rails支援的資料庫包括SQLite3、MySQL、Postgres、IBM DB2、Oracle和SQL Server等。除了安裝資料庫軟體，我們也需要安裝搭配的Ruby函式庫(稱作Adapter或Driver)。作為新手的單機練習，使用`SQLit`就可以了。
 
-### 開始安裝(環境為WSL2)
+### 2.3 開始安裝(環境為WSL2)
 
 首先要先安裝Ruby需要的項目
 
@@ -107,7 +107,7 @@ ruby -v
 gem install bundler
 ```
 
-## 安裝 Rails
+## 3 安裝 Rails
 
 使用以下指令安裝 Rails
 
@@ -134,7 +134,7 @@ rails -v
 wsl --shutdown
 ```
 
-## 建立一個Blog Application
+## 4 建立一個Blog Application
 
 在你預先建立好要存放rails的地方，輸入下面指令建立一個叫做`blog`的Rails專案：
 
@@ -184,7 +184,7 @@ cd blog
 | tmp/     | 暫時性的檔案 |
 | vendor/  | 用來放第三方程式碼外掛的目錄 |
 
-## 啟動伺服器
+## 5 啟動伺服器
 
 Rails使用了一套叫做`Bundler`的工具可以幫助我們檢查及安裝這個Rails應用程式所有依存的套件，在blog資料夾下輸入：
 
@@ -221,7 +221,7 @@ Use Ctrl-C to stop
 
 打開瀏覽器前往[http://localhost:3000](http://localhost:3000)，我們可以看到Rails的預設首頁。
 
-## Hello, Rails!
+## 6 Hello, Rails!
 
 要讓Rails說"你好"，要先建立一個`route`、`controller`、`view`。route會先映射請求到control，control會處理請求所需要的工作，並準備任何view所需要的資料，view會顯示這些資料。
 
@@ -280,7 +280,91 @@ end
 <h1>Hello, Rails!</h1>
 ```
 
-再啟動伺服器，到[http://localhost:3000/articles](http://localhost:3000/articles)就可以看到變化了。
+再啟動伺服器，到 [http://localhost:3000/articles](http://localhost:3000/articles)就可以看到變化了。
+
+目前 [http://localhost:3000](http://localhost:3000)還是顯示 Rails預設的畫面，我們可以把自己做的歡迎畫面導到主頁。新增一個 route並把 root path映射到相對的controller。
+
+開啟`config/routes.rb`，新增 `root` route：
+
+```ruby
+Rails.application.routes.draw do
+  root "articles#index"
+
+  get "/articles", to: "articles#index"
+  # Define your application routes per the DSL in https://guides.rubyonrails.org/routing.html
+end
+```
+
+再到 [http://localhost:3000](http://localhost:3000)觀看變化。
+
+
+## 7 Generating a Model
+
+根據 `MVC (Model-View-Controller)`模式，我們已經完成`controller`與`view`，接下來就是 `model`。
+
+使用 Ruby產生器產生model：
+
+```bash
+bin/rails generate model Article title:string body:text
+```
+
+Rails 會幫你產生數個檔案：
+
+```bash
+invoke  active_record
+create    db/migrate/20220411145014_create_articles.rb
+create    app/models/article.rb
+invoke    test_unit
+create      test/models/article_test.rb
+create      test/fixtures/articles.yml
+```
+
+這裡要使用兩個檔案：
+
+1. `db/migrate/20220411145014_create_articles.rb`
+2. `test/fixtures/articles.yml`
+
+### 7.1 Database Migrations
+
+遷移 (Migrations)用於更改資料庫的結構。在 Rails Application中，遷移是用 Ruby編寫的。
+
+migration file：
+
+```ruby
+class CreateArticles < ActiveRecord::Migration[7.0]
+  def change
+    create_table :articles do |t|
+      t.string :title
+      t.text :body
+
+      t.timestamps
+    end
+  end
+end
+```
+
+調用`create_table`指定 `articles`該如何建造table。默認情況下，`create_table`函式會新增一個自動遞增的主鑑(auto-incrementing primary key)，名為 `id`。
+
+我們也在一開始的時候，定義了兩個 columns: `title` and `body`。
+
+最後，`t.timestamps` 這個方法定義了另外兩個名為 `create_at`與 `update_at`。Rails會幫我們管理創建與更新模型時當下的時間。
+
+使用下列的指令做`遷移`：
+
+```bash
+bin/rails db:migrate
+```
+
+Output：
+
+```text
+== 20220411145014 CreateArticles: migrating ===================================
+-- create_table(:articles)
+   -> 0.0087s
+== 20220411145014 CreateArticles: migrated (0.0088s) ==========================
+```
+
+這樣我們就建立 table並使用了。
 
 ## Source
 
