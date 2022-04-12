@@ -319,7 +319,7 @@ create      test/models/article_test.rb
 create      test/fixtures/articles.yml
 ```
 
-這裡要使用兩個檔案：
+這裡要注意兩個檔案：
 
 1. `db/migrate/20220411145014_create_articles.rb`
 2. `test/fixtures/articles.yml`
@@ -365,6 +365,112 @@ Output：
 ```
 
 這樣我們就建立 table並使用了。
+
+### 7.2 使用 Model與 Database溝通
+
+Rails有一個功能可以與 Database溝通，稱為 `console`。Console是一個相似於互動式編碼的 `irb`。
+
+使用下列指令運行 console，並可以看到 `irb` prompt：
+
+```bash
+bin/rails console
+
+Loading development environment (Rails 7.0.2.3)
+irb(main):001:0> 
+```
+
+在該 prompt下，我們可以新增一個 `Article`物件：
+
+```bash
+article = Article.new(title: "Hello Rails", body: "I am on Rails!")
+```
+
+此時我們新增一個 `Article`物件，但這個物件現在還沒有儲存進資料庫裡，他目前只存在於這個 console上，要把該物件寫入資料庫，必須使用 `save`指令：
+
+```bash
+article.save
+
+#TRANSACTION (0.1ms)  begin transaction
+#Article Create (4.0ms)  INSERT INTO "articles" ("title", "body", "created_at", "updated_at") VALUES (?, ?, ?, ?)  [["title", "Hello Rails"], ["body", "I am Rails!"], ["created_at", "2022-04-12 05:23:21.990518"], ["updated_at", "2022-04-12 05:23:21.990518"]]
+#TRANSACTION (637.2ms)  commit transaction                         
+=> true
+```
+
+上面可以看到 articles執行了 SQL語法 `INSERT INTO "articles" ...`，如果這時候在使用 `article`物件一次，就會出現：
+
+```bash
+article
+=> 
+#<Article:0x00007f5ca4fd58d8
+id: 1,                    
+title: "Hello Rails",     
+body: "I am Rails!",      
+created_at: Tue, 12 Apr 2022 05:18:31.460794000 UTC +00:00,
+updated_at: Tue, 12 Apr 2022 05:18:31.460794000 UTC +00:00>
+```
+
+`id`, `created_at`, and `updated_at`都被設定好了，這也說明了 Rails確實的幫我們儲存在這些物件。
+
+如果要在資料庫裡找到 article，可以使用 `find`：
+
+```bash
+Article.find(1)
+#<Article:0x00007f5ca4ac7238      
+ id:1,                                                
+ title: "Hello Rails",                                             
+ body: "I am Rails!",                                             
+ created_at: Tue, 12 Apr 2022 05:18:31.460794000 UTC +00:00,       
+ updated_at: Tue, 12 Apr 2022 05:18:31.460794000 UTC +00:00>  
+```
+
+輸出所有 articles，可以使用 `all`：
+
+```bash
+Article.all
+[#<Article:0x00007f5ca5699e80  
+  id:1,                       
+  title: "Hello Rails",                                           
+  body: "I am Rails!",                                          
+  created_at: Tue, 12 Apr 2022 05:18:31.460794000 UTC +00:00,      
+  updated_at: Tue, 12 Apr 2022 05:18:31.460794000 UTC +00:00>]
+```
+
+### 7.3 在 Views上顯示 Articles
+
+我們知道如何使用 model與資料庫溝通，現在我們可以獲取資料庫的資料，將資料傳給 views讓它呈現。
+
+首先，先到 controller `app/controllers/articles_controller.rb`，並更改 `index` action：
+
+```ruby
+class ArticlesController < ApplicationController
+  def index
+    @articles = Article.all
+  end
+end
+```
+
+根據上面，我們從資料庫獲得所有的 Articles，並且指定到 `@articles`。
+
+接著到 `app/views/articles/index.html.erb`加入：
+
+```erb
+<h1>Hello, Rails!</h1>
+
+<ul>
+  <% @articles.each do |article| %>
+    <li>
+	  <%= article.title %>
+	</li>
+  <% end %>
+</ul>
+```
+
+上方程式碼是HTML與ERB的混合。`ERB`是一種模板系統 (Templating system)，用於嵌入 Ruby程式碼。這裡有兩種 ERB標籤：
+
+* `<% %>` 在範圍裡執行 ruby code。
+* `<%= %>` 輸出返回的值到 ERB。
+
+再到 [http://localhost:3000](http://localhost:3000)，可以看到所有 Article的名稱。
 
 ## Source
 
