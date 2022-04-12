@@ -472,6 +472,115 @@ end
 
 再到 [http://localhost:3000](http://localhost:3000)，可以看到所有 Article的名稱。
 
+## 8 CRUD
+
+接下來要開始設計 `CRUD (Create、Read、Update、Delete)`操作。
+
+### 8.1 顯示單一 Article (Read)
+
+首先，我們要先加入新的 route，開啟 `config/routes.rb`：
+
+```ruby
+Rails.application.routes.draw do
+  root "articles#index"
+  
+  get "/articles", to: "articles#index"
+  get "/articles/:id", to: "articles#show"
+  # Define your application routes per the DSL in https://guides.rubyonrails.org/routing.html
+end
+```
+
+`:id`：這是 route parameter (路由參數)。route parameter會獲得所指定部份的請求路徑，把它放進`params`。使用 controller可以獲得params。
+
+例如：請求 `GET http://localhost:3000/articles/1`，`1`會成為 `:id`的值，可以在 `ArticlesController`裡使用 `params[:id]`獲得該值。
+
+我們在 `app/controllers/articles_controller.rb`新增一個新的 action名為 `show`：
+
+```ruby
+class ArticlesController < ApplicationController
+  def index
+    @articles = Article.all
+  end
+  
+  def show
+    @article = Article.find(params[:id])
+  end
+end
+```
+
+之後再創立新的 view，`app/views/articles/show.html.erb`：
+
+```erb
+<h1><%= @article.title %></h1>
+
+<p><%= @article.body %></p>
+```
+
+再到 [http://localhost:3000/articles/1](http://localhost:3000/articles/1)，就可以看到文章了。
+
+### 8.2 Resourceful Routing
+
+現在我們已經建立 CRUD裡面的 Read了，還有其他的 Create、 Update、Delete需要建立，當然也要新增與之相對的 controller action與 views。每當有`Routes`、`Controller`、`Views`這三個組合執行 CRUD操作，這都稱為 `resource`。
+
+Rails提供給 routes一個名為 `resources`方法，他有所有 CRUD需要的 routes，我們可以把 `config/routes.rb`所新增的兩個 get route改換成 `resources`：
+
+```ruby
+Rails.application.routes.draw do
+  root "articles#index"
+
+  resources :articles
+end
+```
+
+使用 `bin/rails routes` 指令可以檢查所有的 routes：
+
+```bash
+bin/rails routes
+      Prefix Verb   URI Pattern                  Controller#Action
+        root GET    /                            articles#index
+    articles GET    /articles(.:format)          articles#index
+ new_article GET    /articles/new(.:format)      articles#new
+     article GET    /articles/:id(.:format)      articles#show
+             POST   /articles(.:format)          articles#create
+edit_article GET    /articles/:id/edit(.:format) articles#edit
+             PATCH  /articles/:id(.:format)      articles#update
+             DELETE /articles/:id(.:format)      articles#destroy
+```
+
+觀看上面可以發現，不只幫我們設定好 routes，連controller action都設定好了。
+
+`resources`還設計了 URL、path helper methods，我們可以使用後綴 (Prefix)：`_url`或`_path` 來回傳 URL。例如：當要連結到一篇文章時，`article_path`會回傳` "/articles/#{article.id}"`，可以用它來連接我們 `index.html.erb `與 `show.html.erb`：
+
+```erb
+<h1>Articles</h1>
+
+<ul>
+  <% @articles.each do |article| %>
+    <li>
+      <a href="<%= article_path(article) %>">
+        <%= article.title %>
+      </a>
+    </li>
+  <% end %>
+</ul>
+```
+
+這裡一個方法叫做 `link_to`，`link_to`會把指定的對象轉換成路徑。例如：我們要從`index`進到一篇`article`裡，`link_to`會調用 `article_path`：
+
+```erb
+<h1>Hello, Rails!</h1>
+
+<ul>
+  <% @articles.each do |article| %>
+    <li>
+      <%= link_to article.title, article %>
+	  </li>
+  <% end %>
+</ul>
+```
+
+`link_to`的第一個參數為連接的文字，第二個參數是傳送一個model。
+
 ## Source
 
 [Rails Guides](https://guides.rubyonrails.org/getting_started.html)
