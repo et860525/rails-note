@@ -581,6 +581,222 @@ edit_article GET    /articles/:id/edit(.:format) articles#edit
 
 `link_to`的第一個參數為連接的文字，第二個參數是傳送一個model。
 
+### 8.3 建立一個新的 Article
+
+繼續建立CRUD裡面的 `Create`。在Web裡，建立新的資源需要經過許多步驟。用戶必須先填寫表單，然後再提交。如果沒有任何錯誤就保存進資料庫。如果有錯誤，就重新顯示表單並加上錯誤訊息，以此反覆。
+
+在 Rails裡，這些步驟都由 controller `new`和 `create`處理，在 `app/controllers/articles_controller.rb`加入以下程式碼：
+
+```ruby
+class ArticlesController < ApplicationController
+  def index
+    @articles = Article.all
+  end
+  
+  def show
+    @article = Article.find(params[:id])
+  end
+
+  def new
+    @article = Article.new
+  end
+
+  def create
+    @article = Article.new(title="...", body="...")
+    
+    if @article.save
+      redirect_to @article
+    else
+      render :new, status: :unprocessable_entity
+    end
+  end
+end
+```
+
+* `new` action：實例化一篇新文章，但並不會執行保存。這個實例是傳給 view做表單用的。`new`會把該實例傳給 `app/views/articles/new.html.erb`。
+
+* `create` action：使用 title和 body的值實例化一篇新文章，並嘗試保存它。如果文章保存成功，瀏覽器會導向 `http://localhost:3000/articles/#{@article.id}`。如果失敗，會由 `app/views/articles/new.html.erb`呈現 狀態代碼 `422 Unprocessable Entity`來重新顯示表單。目前 title與 body都是暫時的值，等一下會做改動。
+
+> `redirect_to` 會讓瀏覽器做一個新的 request。`render`則是指定一個 view並傳送當下的 request。簡單來說，如果使用 `render`做保存後的顯示，`render`會無法得到值，因為 request還是舊的。
+
+#### 8.3.1 使用表單產生器 (Form Builder)
+
+這裡使用Rails裡的一個功能名為`表單產生器 (Form Builder)`，`form builder`可以使用最少的程式碼，來產生表單。
+
+新建檔案 `app/views/articles/new.html.erb`並加入：
+
+```erb
+<h1>New Article</h1>
+
+<%= form_with model: @article do |form| %>
+  <div>
+    <%= form.label :title %><br>
+    <%= form.text_field :title %>
+  </div>
+
+  <div>
+    <%= form.label :body %><br>
+    <%= form.text_area :body %>
+  </div>
+
+  <div>
+    <%= form.submit %>
+  </div>
+<% end %>
+```
+
+使用 `form_with` helper method實例化表單產生器。在`form_with`區塊裡，我們可以使用像是 `label`和 `text_field`的這些方法，來建立我們所需要的表單。
+
+使用 `form_with`產生的結果：
+
+```html
+<form action="/articles" accept-charset="UTF-8" method="post">
+  <input type="hidden" name="authenticity_token" value="...">
+
+  <div>
+    <label for="article_title">Title</label><br>
+    <input type="text" name="article[title]" id="article_title">
+  </div>
+
+  <div>
+    <label for="article_body">Body</label><br>
+    <textarea name="article[body]" id="article_body"></textarea>
+  </div>
+
+  <div>
+    <input type="submit" name="commit" value="Create Article" data-disable-with="Create Article">
+  </div>
+</form>
+```
+
+#### 8.3.2 使用強參數 (Strong Parameters)
+
+提交表單後，提交的資料與捕捉到的 route參數都會被放在名為 `params`的 Hash裡。`create` action可以通過訪問已經提交的 `params[:article][:title]`和 `params[:article][:body]`。但是，當隨著添加更多表單，這些字段會變得冗長並且容易出錯。
+
+所以我們可以傳入一個單一的 Hash。但是我們必須要指定哪些資料可以放進這個 Hash，否則，惡意用戶可能會提交額外的表單欄位來更改private的資料。其實如果你直接傳送沒過濾的 `params[:article]` Hash至 `Article.new`。Rails會出現 `ForbiddenAttributesError`警告。為了過濾 `params`，我們使用 Rails裡的 **Strong Parameters**來過濾 `params`。
+
+新增一個 private方法名為 `article_params`到 `app/controllers/articles_controller.rb`，並加到 `create` action：
+
+```ruby
+class ArticlesController < ApplicationController
+  def index
+    @articles = Article.all
+  end
+
+  def show
+    @article = Article.find(params[:id])
+  end
+
+  def new
+    @article = Article.new
+  end
+
+  def create
+    @article = Article.new(article_params)
+
+    if @article.save
+      redirect_to @article
+    else
+      render :new, status: :unprocessable_entity
+    end
+  end
+
+  private
+    def article_params
+      params.require(:article).permit(:title, :body)
+    end
+end
+```
+
+#### 8.3.3 驗證與顯示錯誤訊息
+
+建立新資源要經過許多步驟，處理無效的用戶輸入也是其中之一。Rails提供一個名為 `validations`的方法幫助我們檢查這些資料。Validations 是在 model object被保存前的一個規則檢查機制，如果有任何錯誤，保存將會被中止，並且會回傳相應 model object屬性的錯誤訊息。
+
+在 `app/models/article.rb`新增 `validations`到我們的 model：
+
+```ruby
+class Article < ApplicationRecord
+	validates :title, presence: true
+	validates :body, presence: true, length: { minimum: 10 }
+end
+```
+
+* 第一個 validation：`presence: true`表示 `title`值必須存在。而因為 `title`是 string型別，所以 `title`的值必須要包含至少一個非空白字元。
+
+* 第二個 validation：與上面的一樣，`body`值必須存在。`length: { minimum: 10 }`這表示 `body`值必須最少要有10個字元。
+
+> `title`和 `body`的這些屬性都是由 `Active Record`自動生成的，它會為每個 column自動定義這些屬性。
+
+接下來我們要放置 validations，讓我們修改 `app/views/articles/new.html.erb`來顯示關於 `title`和 `body`的錯誤訊息：
+
+```erb
+<h1>New Article</h1>
+
+<%= form_with model: @article do |form| %>
+  <div>
+    <%= form.label :title %><br>
+    <%= form.text_field :title %>
+    <% @article.errors.full_messages_for(:title).each do |message| %>
+      <div><%= message %></div>
+    <% end %>
+  </div>
+
+  <div>
+    <%= form.label :body %><br>
+    <%= form.text_area :body %>
+    <% @article.errors.full_messages_for(:body).each do |message| %>
+      <div><%= message %></div>
+    <% end %>
+  </div>
+
+  <div>
+    <%= form.submit %>
+  </div>
+<% end %>
+```
+
+`full_messages_for`方法會回傳一組array為指定屬性的錯誤訊息。如果沒有任何的錯誤，則array會是空白的。
+
+#### 8.3.4 步驟解釋與結尾
+
+最後來整理一下 `new` action和 `create` action是如何工作的，先來看下方程式碼：
+
+```ruby
+def new
+  @article = Article.new
+end
+
+def create
+  @article = Article.new(article_params)
+
+  if @article.save
+    redirect_to @article
+  else
+    render :new, status: :unprocessable_entity
+  end
+end
+```
+
+當訪問 [http://localhost:3000/articles/new](http://localhost:3000/articles/new)時，`GET /articles/new` request會映射 `new` action。`new` action不會嘗試保存 `@article`，而 validations也不會檢查，不會產生任何的錯誤訊息。
+
+當提交表單後，`POST /articles` request會映射 `create` action。`create` action會嘗試保存 `@article`並且 validations會做檢查。如果驗證失敗，`@article`不會被保存，並回傳加上錯誤訊息的`app/views/articles/new.html.erb`。
+
+現在已經完成了 `Create`步驟了，把[http://localhost:3000/articles/new](http://localhost:3000/articles/new)連結加到 `app/views/articles/index.html.erb`：
+
+```erb
+<h1>Hello, Rails!</h1>
+
+<ul>
+  <% @articles.each do |article| %>
+    <li>
+      <%= link_to article.title, article %>
+	  </li>
+  <% end %>
+</ul>
+
+<%= link_to "New Article", new_article_path %>
+```
+
 ## Source
 
 [Rails Guides](https://guides.rubyonrails.org/getting_started.html)
