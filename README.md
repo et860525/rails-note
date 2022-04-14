@@ -581,7 +581,7 @@ edit_article GET    /articles/:id/edit(.:format) articles#edit
 
 `link_to`的第一個參數為連接的文字，第二個參數是傳送一個model。
 
-### 8.3 建立一個新的 Article
+### 8.3 建立一個新的 Article (Create)
 
 繼續建立CRUD裡面的 `Create`。在Web裡，建立新的資源需要經過許多步驟。用戶必須先填寫表單，然後再提交。如果沒有任何錯誤就保存進資料庫。如果有錯誤，就重新顯示表單並加上錯誤訊息，以此反覆。
 
@@ -796,6 +796,211 @@ end
 
 <%= link_to "New Article", new_article_path %>
 ```
+
+### 8.4 更新 Article (Update)
+
+接下來繼續完成 "U" (Update)。Update與 Create十分相似，它們都有多個步驟要處理。首先，使用者 request一個表單來修改資料。提交表單後，如果沒有任何錯誤，資料就會被更新，否則，就會顯示錯誤訊息，依此反覆。
+
+Update由 controller的 `edit` action與 `update` action來實作。新增這兩個 action到 `app/controllers/articles_controller.rb`：
+
+```ruby
+class ArticlesController < ApplicationController
+  def index
+    @articles = Article.all
+  end
+  
+  def show
+    @article = Article.find(params[:id])
+  end
+
+  def new
+    @article = Article.new
+  end
+
+  def create
+    @article = Article.new(article_params)
+    
+    if @article.save
+      redirect_to @article
+    else
+      render :new, status: :unprocessable_entity
+    end
+  end
+
+  def edit
+    @article = Article.find(params[:id])
+  end
+
+  def update
+    @article = Article.find(params[:id])
+
+    if @article.update(article_params)
+      redirect_to @article
+    else
+      render :edit, status: :unprocessable_entity
+    end
+  end
+
+  private
+    def article_params
+      params.require(:article).permit(:title, :body)
+    end
+end
+```
+
+有發覺 `edit`和 `update` actions 與 `new`和 `create` actions有多相像了吧。
+
+首先，`edit` action會獲取資料庫裡指定的 article，並將它儲存在 `@article`能讓我們製作表單。默認情況下，`edit` action render的 view `app/views/articles/edit.html.erb`。
+
+`update` action會重新在資料庫獲取一次指定的資料，並在表單提交後嘗試用已過濾的 `article_params`更新它。如果沒有任何  `validations`失敗，則會 redirect到該文章的畫面，否則會回傳 `app/views/articles/edit.html.erb`並帶著錯誤訊息。
+
+#### 8.4.1 共享部分相同的程式碼
+
+這裡可以注意到，不只 controller相似，連要輸出的 form也是與 `new` action一樣的。多虧了 Rails的 `form builder`與 `resourceful route`，form builder 會根據 model object來自動變化表單的內容。
+
+由於程式碼一樣，我們可以把程式碼分解到稱為 partial的 view。建立 `app/views/articles/_form.html.erb`：
+
+```erb
+<%= form_with model: article do |form| %>
+  <div>
+    <%= form.label :title %><br>
+    <%= form.text_field :title %>
+    <% article.errors.full_messages_for(:title).each do |message| %>
+      <div><%= message %></div>
+    <% end %>
+  </div>
+
+  <div>
+    <%= form.label :body %><br>
+    <%= form.text_area :body %>
+    <% article.errors.full_messages_for(:body).each do |message| %>
+      <div><%= message %></div>
+    <% end %>
+  </div>
+
+  <div>
+    <%= form.submit %>
+  </div>
+<% end %>
+```
+
+上面的程式碼相同於 `app/views/articles/new.html.erb`，只是所有的 `@article`全部都被改成 `article`。這是因為 partials是共享程式碼，他們不依賴於 controller的設定的特定 variable。相反的，我們將從 article傳送 local variable。
+
+讓我們更新 `app/views/articles/new.html.erb`並套用 partial的設定：
+
+```erb
+<h1>New Article</h1>
+
+<%= render "form", article: @article %>
+```
+
+> partial檔案名稱前方必須帶有底線，例如：_form.html.erb。但是在 render時，底線必須要拿掉，例如：render "form"。
+
+建立 `app/views/articles/edit.html.erb`：
+
+```erb
+<h1>Edit Article</h1>
+
+<%= render "form", article: @article %>
+```
+
+#### 8.4.2 結尾
+
+現在我們可以修改文章了，將修改連結放到每篇文章上。到 `app/views/articles/show.html.erb`修改程式碼：
+
+```erb
+<h1><%= @article.title %></h1>
+
+<p><%= @article.body %></p>
+
+<ul>
+  <li><%= link_to "Edit", edit_article_path(@article) %></li>
+</ul>
+```
+
+### 8.5 刪除 Article (Delete)
+
+最後到了 "D" (Delete)。`Delete`相比 Create和 Update簡單許多。它只需要一個 route與一個 controller action。而我們的  resourceful routing已經為我們設定了。`DELETE /article/:id`映射 request到 `ArticlesController`的 `destroy` action。
+
+新增 `destroy` action到 `app/controllers/articles_controller.rb`：
+
+```ruby
+class ArticlesController < ApplicationController
+  def index
+    @articles = Article.all
+  end
+  
+  def show
+    @article = Article.find(params[:id])
+  end
+
+  def new
+    @article = Article.new
+  end
+
+  def create
+    @article = Article.new(article_params)
+    
+    if @article.save
+      redirect_to @article
+    else
+      render :new, status: :unprocessable_entity
+    end
+  end
+
+  def edit
+    @article = Article.find(params[:id])
+  end
+
+  def update
+    @article = Article.find(params[:id])
+
+    if @article.update(article_params)
+      redirect_to @article
+    else
+      render :edit, status: :unprocessable_entity
+    end
+  end
+
+  def destroy
+    @article = Article.find(params[:id])
+    @article.destroy
+
+    redirect_to root_path, status: :see_other
+  end
+
+  private
+    def article_params
+      params.require(:article).permit(:title, :body)
+    end
+end
+```
+
+`destroy` action會從資料庫裡獲取指定的資料，並呼叫 `destroy`刪除它。成功後，瀏覽器會被 redirect到根目錄 (root path)下，status code為 `303 See Other`。
+
+最後把 Delete連結放到各個文章下 `app/views/articles/show.html.erb`：
+
+```erb
+<h1><%= @article.title %></h1>
+
+<p><%= @article.body %></p>
+
+<ul>
+  <li><%= link_to "Edit", edit_article_path(@article) %></li>
+  <li><%= link_to "Destroy", article_path(@article), data: {
+                    turbo_method: :delete,
+                    turbo_confirm: "Are you sure?"
+                  } %></li>
+</ul>
+```
+
+根據上面的程式碼，我們使用 `data` option來設定 "Destroy"連結的 `data-turbo-method`和 `data-turbo-confirm`屬性。這兩個屬性都來自 Rails內建的應用程式 [Turbo](https://turbo.hotwired.dev/)。
+當連結被觸發時：
+
+* `data-turbo-method="delete"`：會丟出 `DELETE` request替代原本的 `GET` requet。
+* `data-turbo-confirm="Are you sure?"`： 會跳出確認視窗，如果使用者按下取消，request會被終止。
+
+到這裡，已經完成了 CRUD了。
 
 ## Source
 
