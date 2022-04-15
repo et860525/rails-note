@@ -226,6 +226,7 @@ Use Ctrl-C to stop
 要讓Rails說"你好"，要先建立一個`route`、`controller`、`view`。route會先映射請求到control，control會處理請求所需要的工作，並準備任何view所需要的資料，view會顯示這些資料。
 
 Ruby如何實現這些工作：
+
 * Routes 是由Ruby DSL (Domain-Specific Language)規則所編寫。
 * Controllers 是 Ruby classes，公共的函式式`actions`。
 * Views 通常為 HTML與Ruby的混合。
@@ -296,7 +297,6 @@ end
 ```
 
 再到 [http://localhost:3000](http://localhost:3000)觀看變化。
-
 
 ## 7 Generating a Model
 
@@ -459,8 +459,8 @@ end
 <ul>
   <% @articles.each do |article| %>
     <li>
-	  <%= article.title %>
-	</li>
+    <%= article.title %>
+  </li>
   <% end %>
 </ul>
 ```
@@ -549,7 +549,7 @@ edit_article GET    /articles/:id/edit(.:format) articles#edit
 
 觀看上面可以發現，不只幫我們設定好 routes，連controller action都設定好了。
 
-`resources`還設計了 URL、path helper methods，我們可以使用後綴 (Prefix)：`_url`或`_path` 來回傳 URL。例如：當要連結到一篇文章時，`article_path`會回傳` "/articles/#{article.id}"`，可以用它來連接我們 `index.html.erb `與 `show.html.erb`：
+`resources`還設計了 URL、path helper methods，我們可以使用後綴 (Prefix)：`_url`或`_path` 來回傳 URL。例如：當要連結到一篇文章時，`article_path`會回傳 `"/articles/#{article.id}"`，可以用它來連接我們 `index.html.erb`與 `show.html.erb`：
 
 ```erb
 <h1>Articles</h1>
@@ -574,7 +574,7 @@ edit_article GET    /articles/:id/edit(.:format) articles#edit
   <% @articles.each do |article| %>
     <li>
       <%= link_to article.title, article %>
-	  </li>
+    </li>
   <% end %>
 </ul>
 ```
@@ -716,8 +716,8 @@ end
 
 ```ruby
 class Article < ApplicationRecord
-	validates :title, presence: true
-	validates :body, presence: true, length: { minimum: 10 }
+  validates :title, presence: true
+  validates :body, presence: true, length: { minimum: 10 }
 end
 ```
 
@@ -790,7 +790,7 @@ end
   <% @articles.each do |article| %>
     <li>
       <%= link_to article.title, article %>
-	  </li>
+    </li>
   <% end %>
 </ul>
 
@@ -848,15 +848,15 @@ class ArticlesController < ApplicationController
 end
 ```
 
-有發覺 `edit`和 `update` actions 與 `new`和 `create` actions有多相像了吧。
+有發覺 `edit`, `update` actions 與 `new`, `create` actions有多相像了吧。
 
-首先，`edit` action會獲取資料庫裡指定的 article，並將它儲存在 `@article`能讓我們製作表單。默認情況下，`edit` action render的 view `app/views/articles/edit.html.erb`。
+首先，`edit` action會獲取資料庫裡指定的 article，並將它儲存在 `@article`能讓我們製作表單。默認情況下，`edit` action render的 view是 `app/views/articles/edit.html.erb`。
 
-`update` action會重新在資料庫獲取一次指定的資料，並在表單提交後嘗試用已過濾的 `article_params`更新它。如果沒有任何  `validations`失敗，則會 redirect到該文章的畫面，否則會回傳 `app/views/articles/edit.html.erb`並帶著錯誤訊息。
+`update` action會重新在資料庫獲取一次指定的資料，並在表單提交後，嘗試用已過濾的 `article_params`更新它。如果沒有任何  `validations`失敗，則會 redirect到該文章的畫面，否則會回傳 `app/views/articles/edit.html.erb`並帶著錯誤訊息。
 
 #### 8.4.1 共享部分相同的程式碼
 
-這裡可以注意到，不只 controller相似，連要輸出的 form也是與 `new` action一樣的。多虧了 Rails的 `form builder`與 `resourceful route`，form builder 會根據 model object來自動變化表單的內容。
+這裡可以注意到，不只 controller相似，連輸出的 form也是與 `new` action一樣的。多虧了 Rails的 `form builder`與 `resourceful route`，form builder 會根據 model object來自動變化表單的內容。
 
 由於程式碼一樣，我們可以把程式碼分解到稱為 partial的 view。建立 `app/views/articles/_form.html.erb`：
 
@@ -884,9 +884,9 @@ end
 <% end %>
 ```
 
-上面的程式碼相同於 `app/views/articles/new.html.erb`，只是所有的 `@article`全部都被改成 `article`。這是因為 partials是共享程式碼，他們不依賴於 controller的設定的特定 variable。相反的，我們將從 article傳送 local variable。
+上面的程式碼相同於 `app/views/articles/new.html.erb`，只是所有的 `@article`全部都被改成 `article`。這是因為 partials是共享程式碼，他們不依賴於 controller設定的特定 variable。相反的，我們將從 article傳送 local variable。
 
-讓我們更新 `app/views/articles/new.html.erb`並套用 partial的設定：
+讓我們更新 `app/views/articles/new.html.erb`套用 partial的設定，並傳入 article：
 
 ```erb
 <h1>New Article</h1>
@@ -1001,6 +1001,247 @@ end
 * `data-turbo-confirm="Are you sure?"`： 會跳出確認視窗，如果使用者按下取消，request會被終止。
 
 到這裡，已經完成了 CRUD了。
+
+## 9 新增第二個 Model
+
+### 9.1 產生 Model
+
+接下來新增一個新名為 `Comment`的 Model。這裡也使用與產生 `Article` Model時所使用的產生器：
+
+```bash
+bin/rails g model Comment commenter:string body:text article:references
+```
+
+指令會產生4個檔案：
+
+|檔案|目的|
+|----------|-----------|
+|db/migrate/20220415061358_create_comments.rb|Migration會在資料庫裡建立 comment table|
+|app/models/comment.rb| Comment model|
+|test/models/comment_test.rb| 測試 comment model|
+|test/fixtures/comments.yml| 產生測試 comment model的範例|
+
+首先，先看到 `app/models/comment.rb`：
+
+```ruby
+class Comment < ApplicationRecord
+  belongs_to :article
+end
+```
+
+與 `Article` model的一開始非常像，唯一不同的就是多了一段 `belongs_to :article`。它設定 Comment是 Active Record `association`與 Article，這也就是接下來的重點。
+
+在 shell設定 model時，我們使用了 (`:references`) keyword，而它接受的型別就是 model。它會在你的資料庫的 table上建立一行新的 column，裡面存放的資料是該 model的名稱加上 `_id`的整數 (Integer)，用以下的例子會比較清楚。
+
+到剛剛建立的 `db/migrate/20220415061358_create_comments.rb`：
+
+```ruby
+class CreateComments < ActiveRecord::Migration[7.0]
+  def change
+    create_table :comments do |t|
+      t.string :commenter
+      t.text :body
+      t.references :article, null: false, foreign_key: true
+
+      t.timestamps
+    end
+  end
+end
+```
+
+`t.references`建立一個整數 column名為  `article_id`，由 foreign key來指向 `articles`的 `id` column，接著使用 migration來讓資料庫套用這些設定：
+
+```bash
+bin/rails db:migrate
+```
+
+Rails只會執行還沒有 migrations的部分，依據回傳的狀態你能看到：
+
+```bash
+== 20220415061358 CreateComments: migrating ===================================
+-- create_table(:comments)
+   -> 0.0077s
+== 20220415061358 CreateComments: migrated (0.0078s) ==========================
+```
+
+### 9.2 關聯 (Associating) Model
+
+Active Record associations能讓你簡單的宣告兩個 models之間的關係 (relationship)。而 comments與 articles之間的關係為 `One-To-Many`：
+
+* 每一條 comments都屬於一篇 article
+
+* 一篇 article可以有多個 comments
+
+事實上，association的宣告與 Rails的語法非常相似，而且我們也早就已經看到了。就是 `Comment` moddel (app/models/comment.rb)它讓每個 comment都屬於 Article：
+
+```ruby
+class Comment < ApplicationRecord
+  belongs_to :article
+end
+```
+
+現在編輯 `app/models/article.rb`來新增另外一邊的 association：
+
+```ruby
+class Article < ApplicationRecord
+  has_many :comments
+
+  validates :title, presence: true
+  validates :body, presence: true, length: { minimum: 10 }
+end
+```
+
+這樣一來，你也能使用 `@article.comments`來獲得 comment的資料。
+
+### 9.3 新增一個 Comments Route
+
+與 articles controller一樣，我們需要新增一個 route，讓 Rails知道我們想要如何導到 `comments`。打開 `config/routes.rb`並編輯：
+
+```ruby
+Rails.application.routes.draw do
+  root "articles#index"
+  
+  resources :articles do
+    resources :comments
+  end
+end
+```
+
+在 `articles`裡新增 一個 nested resource 的`comments`。這是另一部分捕捉 article和 comments之間存在的層次關係。
+
+其關係只要使用 `bin/rails routes`就能看的到：
+
+```text
+              Prefix Verb   URI Pattern                                             Controller#Action
+                root GET    /                                                       articles#index
+    article_comments GET    /articles/:article_id/comments(.:format)                comments#index
+                     POST   /articles/:article_id/comments(.:format)                comments#create
+ new_article_comment GET    /articles/:article_id/comments/new(.:format)            comments#new
+edit_article_comment GET    /articles/:article_id/comments/:id/edit(.:format)       comments#edit
+     article_comment GET    /articles/:article_id/comments/:id(.:format)            comments#show
+                     PATCH  /articles/:article_id/comments/:id(.:format)            comments#update
+                     PUT    /articles/:article_id/comments/:id(.:format)            comments#update
+                     DELETE /articles/:article_id/comments/:id(.:format)            comments#destroy
+```
+
+### 9.4 產生 Controller
+
+產生完 model後，現在就要產生 controller：
+
+```bash
+bin/rails g controller Comments
+```
+
+會建立4個檔案與1個空資料夾：
+
+| 檔案/資料夾 | 目的 |
+|-----------|-------------|
+|app/controllers/comments_controller.rb | Comments controller |
+|app/views/comments/ | Comments views |
+|test/controllers/comments_controller_test.rb | 測試 controller |
+|app/helpers/comments_helper.rb | view helper檔案 |
+
+Blog能讓讀者在閱讀文章後直接留下他們的評論，一但增加評論後，將會回到原本的文章並顯示剛剛留下的評論。使用 `CommentsController`建立新增評論和刪除評論的功能。
+
+首先，將修改顯示文章的 template (app/views/articles/show.html.erb)將它改成能發表新評論：
+
+```erb
+<h1><%= @article.title %></h1>
+
+<p><%= @article.body %></p>
+
+<ul>
+  <li><%= link_to "Edit", edit_article_path(@article) %></li>
+  <li><%= link_to "Destroy", article_path(@article), data: {
+                    turbo_method: :delete,
+                    turbo_confirm: "Are you sure?"
+                  } %></li>
+</ul>
+
+<h2>Add a Comment:</h2>
+<%= form_with model: [ @article, @article.comments.build ] do |form| %>
+  <p>
+    <%= form.label :commenter %><br>
+    <%= form.text_field :commenter %>
+  </p>
+  <p>
+    <%= form.label :body %><br>
+    <%= form.text_area :body %>
+  </p>
+  <p>
+    <%= form.submit %>
+  </p>
+<% end %>
+```
+
+以上程式碼會在顯示 `Article`的頁面上加入一個表單，該表單可以調用 `CommentsController`的 `create` action來建立新的評論。這裡調用 `form_with`使用一組 array，它會建構一個 nested route，像是 `/articles/1/comments`。
+
+接著在 `app/controllers/comments_controller.rb`建立 `create`：
+
+```ruby
+class CommentsController < ApplicationController
+  def create
+    @article = Article.find(params[:article_id])
+    @comment = @article.comments.create(comment_params)
+    redirect_to article_path(@article)
+  end
+
+  private
+    def comment_params
+   params.require(:comment).permit(:commenter, :body)
+  end
+end
+```
+
+這個 controller的程式碼可能會比 article的更加複雜一點。這是因為我們設定了 nesting所造成的。每個評論的 request都必須跟著該評論所附加的文章，因此最一開始使用 `find`方法來獲取 `Article`。
+
+此外，程式碼會利用一些 association的方法。`@article.comments`使用 `create`方法來保存這些評論。它會自動連接評論，並讓它屬於特定文章。
+
+新增完評論後，Controller就會導向一開始的文章 `article_path(@article)`。而我們希望評論會顯示在各自的文章裡，所以將它新增到
+ `app/views/articles/show.html.erb`：
+
+```erb
+<h1><%= @article.title %></h1>
+
+<p><%= @article.body %></p>
+
+<ul>
+  <li><%= link_to "Edit", edit_article_path(@article) %></li>
+  <li><%= link_to "Destroy", article_path(@article), data: {
+                    turbo_method: :delete,
+                    turbo_confirm: "Are you sure?"
+                  } %></li>
+</ul>
+
+<h2>Comments</h2>
+<% @article.comments.each do |comment| %>
+  <p>
+    <strong>Commenter:</strong>
+    <%= comment.commenter %>
+  </p>
+  <p>
+    <strong>Comment:</strong>
+    <%= comment.body %>
+  </p>
+<% end %>
+
+<h2>Add a Comment:</h2>
+<%= form_with model: [ @article, @article.comments.build ] do |form| %>
+  <p>
+    <%= form.label :commenter %><br>
+    <%= form.text_field :commenter %>
+  </p>
+  <p>
+    <%= form.label :body %><br>
+    <%= form.text_area :body %>
+  </p>
+  <p>
+    <%= form.submit %>
+  </p>
+<% end %>
+```
+
+這樣就完成了整個留言系統。
 
 ## Source
 
