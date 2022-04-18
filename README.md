@@ -858,7 +858,7 @@ end
 
 這裡可以注意到，不只 controller相似，連輸出的 form也是與 `new` action一樣的。多虧了 Rails的 `form builder`與 `resourceful route`，form builder 會根據 model object來自動變化表單的內容。
 
-由於程式碼一樣，我們可以把程式碼分解到稱為 partial的 view。建立 `app/views/articles/_form.html.erb`：
+由於程式碼一樣，我們可以把程式碼分解到單獨的一個 view裡，讓程式碼可以達到共用的功能。建立 `app/views/articles/_form.html.erb`：
 
 ```erb
 <%= form_with model: article do |form| %>
@@ -1242,6 +1242,105 @@ end
 ```
 
 這樣就完成了整個留言系統。
+
+## 10 重構 (Refactoring)
+
+`8.4.1`節使用的共享程式碼的方式。這裡即將使用此方式來簡短 `app/views/articles/show.html.erb`。
+
+### 10.1 Rendering Collections
+
+首先，顯示 Comments的部分，我們可以建立一個新的檔案名為 `app/views/comments/_comment.html.erb`來存放以下程式碼：
+
+```erb
+<p>
+  <strong>Commenter:</strong>
+  <%= comment.commenter %>
+</p>
+<p>
+  <strong>Comment:</strong>
+  <%= comment.body %>
+</p>
+```
+
+並更改 `app/views/articles/show.html.erb`：
+
+```erb
+<h1><%= @article.title %></h1>
+
+<p><%= @article.body %></p>
+
+<ul>
+  <li><%= link_to "Edit", edit_article_path(@article) %></li>
+  <li><%= link_to "Destroy", article_path(@article), data: {
+                    turbo_method: :delete,
+                    turbo_confirm: "Are you sure?"
+                  } %></li>
+</ul>
+
+<h2>Comments</h2>
+<%= render @article.comments %>
+
+<h2>Add a Comment:</h2>
+<%= form_with model: [ @article, @article.comments.build ] do |form| %>
+  <p>
+    <%= form.label :commenter %><br>
+    <%= form.text_field :commenter %>
+  </p>
+  <p>
+    <%= form.label :body %><br>
+    <%= form.text_area :body %>
+  </p>
+  <p>
+    <%= form.submit %>
+  </p>
+<% end %>
+```
+
+`app/views/comments/_comment.html.erb`會顯示每個 comment的內容。`render` 會對`@article.comments` 使用each，並把每個 comment rendering。在這個情況下，comment就是 local variable的方式呈現。
+
+### 10.2 Rendering Form
+
+將新增 comment的部分也把它做成一個檔案，`app/views/comments/_form.html.erb`並把原本的 form移動到該檔案：
+
+```erb
+<%= form_with model: [ @article, @article.comments.build ] do |form| %>
+  <p>
+    <%= form.label :commenter %><br>
+    <%= form.text_field :commenter %>
+  </p>
+  <p>
+    <%= form.label :body %><br>
+    <%= form.text_area :body %>
+  </p>
+  <p>
+    <%= form.submit %>
+  </p>
+<% end %>
+```
+
+編輯 `app/views/articles/show.html.erb`：
+
+```erb
+<h1><%= @article.title %></h1>
+
+<p><%= @article.body %></p>
+
+<ul>
+  <li><%= link_to "Edit", edit_article_path(@article) %></li>
+  <li><%= link_to "Destroy", article_path(@article), data: {
+                    turbo_method: :delete,
+                    turbo_confirm: "Are you sure?"
+                  } %></li>
+</ul>
+
+<h2>Comments</h2>
+<%= render @article.comments %>
+
+<h2>Add a comment:</h2>
+<%= render 'comments/form' %>
+```
+
+第二個 render只 render特定的 template，`comments/form`。Rails很聰明，使用`/`就可以獲得 `app/views/comments`裡面的 `_form.html.erb`(記得在 render裡不需要"`_`")。
 
 ## Source
 
