@@ -1342,6 +1342,344 @@ end
 
 第二個 render只 render特定的 template，`comments/form`。Rails很聰明，使用`/`就可以獲得 `app/views/comments`裡面的 `_form.html.erb`(記得在 render裡不需要"`_`")。
 
+### 10.3 使用 Concerns
+
+Concerns能讓大型的 `controllers`或是 `models`更好的理解與管理。當多個 models (或是 controller)共享同一個 concerns時，會具有可重複使用 (reusability)的優勢。使用包含表示 models或 controller負責的功能，並明確定義部分的方法來實現 concerns。在其他語言中，這種模塊稱為 `mixins`。
+
+你可以像使用任何模塊一樣，在 controller或 model裡使用 concerns。當你第一次使用 `rails new blog`建立app時，兩個 concerns資料夾就已經被建立了：
+
+```text
+app/controllers/concerns
+app/models/concerns
+```
+
+一篇 blog article可能會有不同的狀態，舉例來說，文章可能為公開給所有人看到 (`public`)，或是只能由作者自己看到的 (`private`)。也有對所有人隱藏的 (`archived`)。Comments也有相似的顯示或隱藏系統。這些都由 model裡的 `status` column控制。
+
+首先，先使用下列指令來新增 status到 `Articles`和 `Comments`：
+
+```bash
+bin/rails g migration AddStatusToArticles status:string
+bin/rails g migration AddStatusToComments status:string
+```
+
+使用 migrate套用到 database：
+
+```bash
+bin/rails db:migrate
+```
+
+接著把 `:status`作為 strong parameter加到  permit裡，到 `app/controllers/articles_controller.rb`：
+
+```ruby
+private
+  def article_params
+    params.require(:article).permit(:title, :body, :status)
+  end
+```
+
+和 `app/controllers/comments_controller.rb`：
+
+```ruby
+private
+  def comment_params
+  params.require(:comment).permit(:commenter, :body, :status)
+end
+```
+
+在執行完 `bin/rails db:migrate`加入 `status` columns後，到 `article` model新增下列程式碼：
+
+```ruby
+class Article < ApplicationRecord
+  has_many :comments
+
+  validates :title, presence: true
+  validates :body, presence: true, length: { minimum: 10 }
+
+    VALID_STATUSES = ['public', 'private', 'archived']
+
+  validates :status, inclusion: { in: VALID_STATUSES }
+
+  def archived?
+    status == 'archived'
+  end
+end
+```
+
+和 `Comment` model：
+
+```ruby
+class Comment < ApplicationRecord
+  belongs_to :article
+
+  VALID_STATUSES = ['public', 'private', 'archived']
+
+  validates :status, inclusion: { in: VALID_STATUSES }
+
+  def archived?
+    status == 'archived'
+  end
+end
+```
+
+在 `index` action template (`app/views/articles/index.html.erb`)裡，使用 `archived?`函式來避免顯示任何 archived article：
+
+```erb
+<h1>Hello, Rails!</h1>
+
+<ul>
+  <% @articles.each do |article| %>
+    <% unless article.archived? %>
+      <li>
+        <%= link_to article.title, article %>
+      </li>
+    <% end %>
+  <% end %>
+</ul>
+
+<%= link_to "New Article", new_article_path %>
+```
+
+在 comment的 `app/views/comments/_comment.html.erb`也要使用 `archived?`函式來避免顯示任何 archived comment：
+
+```erb
+<%= unless comment.archived? %>
+  <p>
+    <strong>Commenter:</strong>
+    <%= comment.commenter %>
+  </p>
+
+  <p>
+    <strong>Comment:</strong>
+    <%= comment.body %>
+  </p>
+<% end %>
+```
+
+如果你再次查看 models，你會發現判斷 `archived`的邏輯是重複的。如果未來 blog的功能越來越多，像是私人訊息，你也會發現邏輯再一次的重複。而這就是 `concerns`出現的時機了。
+
+一個 concerns只負責 models的重點的 subset。Concerns的方法都將與 models的可見性有關。這裡我們可以調用新的 concerns名為 `Visible`。我們可以在 `app/models/concerns`裡建立一個新文件名為 `visible.rb`，並保存所有在 models中重複的所有 status方法。
+
+`app/models/concerns/visible.rb`
+
+```ruby
+module Visible
+  def archived?
+    status == 'archived'
+  end
+end
+```
+
+我們可以在 concern裡新增 status validation，但這會稍微複雜，因為驗證是調用 class level的方法。而`ActiveSupport::Concern`提供了簡單比較簡單的方式：
+
+```ruby
+module Visible
+  extend ActiveSupport::Concern
+
+  VALID_STATUSES = ['public', 'private', 'archived']
+
+  included do
+    validates :status, inclusion: { in: VALID_STATUSES }
+  end
+
+  def archived?
+    status == 'archived'
+  end
+end
+```
+
+現在可以移除其他重複的邏輯區塊，並 include我們的 `Visible` module。
+
+`app/models/article.rb`：
+
+```ruby
+class Article < ApplicationRecord
+  include Visible    
+
+  has_many :comments
+
+  validates :title, presence: true
+  validates :body, presence: true, length: { minimum: 10 }
+end
+```
+
+`app/models/comment.rb`：
+
+```ruby
+class Comment < ApplicationRecord
+  include Visible
+
+  belongs_to :article
+end
+```
+
+Concerns也可以加入 Class methods。如果你想顯示有多少篇 public的 articles或是 comments，可以向 Visible加入一個 class methods：
+
+```ruby
+module Visible
+  extend ActiveSupport::Concern
+
+  VALID_STATUSES = ['public', 'private', 'archived']
+
+  included do
+    validates :status, inclusion: { in: VALID_STATUSES }
+  end
+
+  class_methods do
+    def public_count
+      where(status: 'public').count
+    end
+  end
+
+  def archived?
+    status == 'archived'
+  end
+end
+```
+
+這樣你就能在 views像調用各種 class methods一樣調用它：
+
+```erb
+<h1>Hello, Rails!</h1>
+
+This blog has <%= Article.public_count %> articles and countings!
+
+<ul>
+  <% @articles.each do |article| %>
+    <% unless article.archived? %>
+      <li>
+        <%= link_to article.title, article %>
+      </li>
+    <% end %>
+  <% end %>
+</ul>
+
+<%= link_to "New Article", new_article_path %>
+```
+
+最後，在 form裡新增一個選擇框，讓使用者在建立 article或是發表新的 comment時可以選擇 status。我們也可以指定預設的 status為 `public`。在 `app/views/articles/_form.html.erb`新增：
+
+```erb
+<div>
+  <%= form.label :status %><br>
+  <%= form.select :status, ['public', 'private', 'archived'], selected: 'public' %>
+</div>
+```
+
+`app/views/comments/_form.html.erb`：
+
+```erb
+<p>
+  <%= form.label :status %><br>
+  <%= form.select :status, ['public', 'private', 'archived'], selected: 'public' %>
+</p>
+```
+
+## 11 刪除 Comments
+
+Blog另一個重要功能是能夠刪除垃圾評論。所以我們需要在 view裡面使用連接，並在 `CommentsControlle`裡加入 `destroy` action。
+
+首先，先加入 delete link到 `app/views/comments/_comment.html.erb`：
+
+```erb
+<% unless comment.archived? %>
+  <p>
+    <strong>Commenter:</strong>
+    <%= comment.commenter %>
+  </p>
+
+  <p>
+    <strong>Comment:</strong>
+    <%= comment.body %>
+  </p>
+
+  <p>
+    <%= link_to "Destroy Comment", [comment.article, comment], data:{
+                  turbo_method: :delete,
+                  turbo_confirm: "Are you sure?"
+                } %>
+  </p>
+<% end %>
+```
+
+按下 "Destroy Comment"會觸發連結 `DELETE /articles/:article_id/comments/:id`到我們的 `CommentsController`，可以使用他來找到我們想要刪除的 comment，新增 `destroy` action到我們的 controller裡 (`app/controllers/comments_controller.rb`)：
+
+```ruby
+class CommentsController < ApplicationController
+  def create
+    @article = Article.find(params[:article_id])
+    @comment = @article.comments.create(comment_params)
+    redirect_to article_path(@article)
+  end
+
+  def destroy
+    @article = Article.find(params[:article_id])
+    @comment = @article.comments.find(params[:id])
+    @comment.destroy
+    redirect_to article_path(@article), status: 303
+  end
+
+  private
+    def comment_params
+    params.require(:comment).permit(:commenter, :body, :status)
+  end
+end
+```
+
+`destroy` action會找到我們想要的 article，並定位在 `@article.comments`裡的 collection，然後在從資料庫裡刪除該筆 comment，並回傳 article裡的 show action。
+
+### 11.1 刪除關聯的物件 (Associated Objects)
+
+如果你刪除了 article，那它底下的 comments也須要一併刪除，不然它會佔據資料庫的空間。Rails允許你使用 association裡的 `dependent`選項來達成這個目標。修改 Article model，`app/models/article.rb`：
+
+```ruby
+class Article < ApplicationRecord
+  include Visible    
+
+  has_many :comments, dependent: :destroy
+
+  validates :title, presence: true
+  validates :body, presence: true, length: { minimum: 10 }
+end
+```
+
+## 12 安全性
+
+### 12.1 基本的身分驗證 (Authentication)
+
+如果你要把這個 blog發佈到網路上，任何人都可以新增、編輯和刪除 articles和 comments。
+
+可以使用 Rails提供的 HTTP Authentication system。
+
+在 `ArticleController`，如果沒有經過身分驗證的話，就無法使用某一些 action。這裡我們可以使用 `http_basic_authenticate_with`函式來允許哪個 action能被使用。
+
+要使用 authentication system，到 `app/controllers/articles_controller.rb`加入。這裡設定除了 `index`和 `show` action以外，其他 actions都要進行登入才能使用：
+
+```ruby
+class ArticlesController < ApplicationController
+
+  http_basic_authenticate_with name: "mango", password: "secret", except: [:index, :show]
+
+  def index
+    @articles = Article.all
+  end
+
+  # other code...
+```
+
+同時設定只有登入才能刪除 comments，到 `app/controllers/comments_controller.rb`：
+
+```ruby
+class CommentsController < ApplicationController  
+
+  http_basic_authenticate_with name: "mango", password: "secret", only: :destroy
+
+  def create
+
+  # other code...
+```
+
+現在有些 action必須要登入才能使用。
+
 ## Source
 
 [Rails Guides](https://guides.rubyonrails.org/getting_started.html)
